@@ -1,5 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %> <%-- Added for Math.min if needed, though not strictly in this change --%>
 
 <jsp:include page="/WEB-INF/views/includes/header.jsp">
     <jsp:param name="pageTitle" value="Home" />
@@ -28,19 +29,25 @@
     <!-- Featured Vendors -->
     <section class="mb-5">
         <h2 class="section-title text-center mb-4">Featured Vendors</h2>
-        <div class="row">
+        <%-- MODIFICATION: Added justify-content-center to this row --%>
+        <div class="row justify-content-center">
             <c:forEach items="${featuredVendors}" var="vendor" begin="0" end="3">
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="card vendor-card shadow-sm h-100">
-                        <img src="${vendor.imageUrl != null ? vendor.imageUrl : 'https://via.placeholder.com/300x200?text=Service+Image'}" 
-                             class="card-img-top" alt="${vendor.name}">
-                        <div class="card-body">
+                        <img src="${not empty vendor.imageUrl ? vendor.imageUrl : 'https://via.placeholder.com/300x200?text=Service+Image'}" 
+                             class="card-img-top" alt="${vendor.name}" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">${vendor.name}</h5>
-                            <p class="badge bg-info text-dark">${vendor.type}</p>
-                            <p class="card-text text-muted">${vendor.description.substring(0, Math.min(80, vendor.description.length()))}...</p>
+                            <p class="badge bg-info text-dark mb-1">${vendor.type}</p>
+                            <p class="card-text text-muted small flex-grow-1">
+                                <c:set var="descLength" value="${fn:length(vendor.description)}" />
+                                <c:set var="maxLength" value="80" />
+                                ${fn:substring(vendor.description, 0, descLength > maxLength ? maxLength : descLength)}<c:if test="${descLength > maxLength}">...</c:if>
+                            </p>
                         </div>
-                        <div class="card-footer bg-white border-0">
-                            <a href="${pageContext.request.contextPath}/vendors/view?id=${vendor.id}" class="btn btn-outline-primary w-100">View Details</a>
+                        <div class="card-footer bg-white border-0 pt-3">
+                             <%-- Assuming your vendor details URL structure is /vendor/{id} or /vendor/details?id={id} --%>
+                            <a href="${pageContext.request.contextPath}/vendor/${vendor.id}" class="btn btn-outline-primary w-100">View Details</a>
                         </div>
                     </div>
                 </div>
@@ -51,14 +58,14 @@
                 <!-- Venue Card -->
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="card vendor-card shadow-sm h-100">
-                        <img src="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Luxury Venue">
-                        <div class="card-body">
+                        <img src="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Luxury Venue" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">Luxury Venue</h5>
-                            <p class="badge bg-info text-dark">VENUE</p>
-                            <p class="card-text text-muted">Elegant venue with stunning views, perfect for weddings and corporate events...</p>
+                            <p class="badge bg-info text-dark mb-1">VENUE</p>
+                            <p class="card-text text-muted small flex-grow-1">Elegant venue with stunning views, perfect for weddings and corporate events...</p>
                         </div>
-                        <div class="card-footer bg-white border-0">
-                            <a href="${pageContext.request.contextPath}/vendors" class="btn btn-outline-primary w-100">View Details</a>
+                        <div class="card-footer bg-white border-0 pt-3">
+                            <a href="${pageContext.request.contextPath}/vendors?type=Venue" class="btn btn-outline-primary w-100">View Details</a>
                         </div>
                     </div>
                 </div>
@@ -66,14 +73,14 @@
                 <!-- Catering Card -->
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="card vendor-card shadow-sm h-100">
-                        <img src="https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Gourmet Catering">
-                        <div class="card-body">
+                        <img src="https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Gourmet Catering" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">Gourmet Catering</h5>
-                            <p class="badge bg-info text-dark">CATERING</p>
-                            <p class="card-text text-muted">Exquisite food and presentation for all occasions, from intimate gatherings to large events...</p>
+                            <p class="badge bg-info text-dark mb-1">CATERING</p>
+                            <p class="card-text text-muted small flex-grow-1">Exquisite food and presentation for all occasions, from intimate gatherings to large events...</p>
                         </div>
-                        <div class="card-footer bg-white border-0">
-                            <a href="${pageContext.request.contextPath}/vendors" class="btn btn-outline-primary w-100">View Details</a>
+                        <div class="card-footer bg-white border-0 pt-3">
+                            <a href="${pageContext.request.contextPath}/vendors?type=Catering" class="btn btn-outline-primary w-100">View Details</a>
                         </div>
                     </div>
                 </div>
@@ -81,32 +88,33 @@
                 <!-- Photography Card -->
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="card vendor-card shadow-sm h-100">
-                        <img src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Elite Photography">
-                        <div class="card-body">
+                        <img src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Elite Photography" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">Elite Photography</h5>
-                            <p class="badge bg-info text-dark">PHOTOGRAPHY</p>
-                            <p class="card-text text-muted">Capturing your special moments with artistic flair and professional equipment...</p>
+                            <p class="badge bg-info text-dark mb-1">PHOTOGRAPHY</p>
+                            <p class="card-text text-muted small flex-grow-1">Capturing your special moments with artistic flair and professional equipment...</p>
                         </div>
-                        <div class="card-footer bg-white border-0">
-                            <a href="${pageContext.request.contextPath}/vendors" class="btn btn-outline-primary w-100">View Details</a>
+                        <div class="card-footer bg-white border-0 pt-3">
+                            <a href="${pageContext.request.contextPath}/vendors?type=Photography" class="btn btn-outline-primary w-100">View Details</a>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Decoration Card -->
+                <%-- Decoration Card (Optional, if you want to show 4 placeholders)
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="card vendor-card shadow-sm h-100">
-                        <img src="https://images.unsplash.com/photo-1478146896981-b47f11bdce5f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Creative Decorations">
-                        <div class="card-body">
+                        <img src="https://images.unsplash.com/photo-1478146896981-b47f11bdce5f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" class="card-img-top" alt="Creative Decorations" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
                             <h5 class="card-title">Creative Decorations</h5>
-                            <p class="badge bg-info text-dark">DECOR</p>
-                            <p class="card-text text-muted">Transform any space into a stunning event venue with our creative decoration services...</p>
+                            <p class="badge bg-info text-dark mb-1">DECORATION</p>
+                            <p class="card-text text-muted small flex-grow-1">Transform any space into a stunning event venue with our creative decoration services...</p>
                         </div>
-                        <div class="card-footer bg-white border-0">
-                            <a href="${pageContext.request.contextPath}/vendors" class="btn btn-outline-primary w-100">View Details</a>
+                        <div class="card-footer bg-white border-0 pt-3">
+                            <a href="${pageContext.request.contextPath}/vendors?type=Decoration" class="btn btn-outline-primary w-100">View Details</a>
                         </div>
                     </div>
                 </div>
+                 --%>
             </c:if>
         </div>
         

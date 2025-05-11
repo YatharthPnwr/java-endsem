@@ -10,7 +10,7 @@ import java.sql.SQLException;
 public class DatabaseUtil {
     private static final String JDBC_URL = "jdbc:mysql://localhost:3306/eventWebApp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true";
     private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "yatharth"; // Set your database password here
+    private static final String DB_PASSWORD = "root"; // Set your database password here
     
     /**
      * Gets a connection to the database.

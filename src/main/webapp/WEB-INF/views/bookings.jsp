@@ -96,7 +96,7 @@
                                     </td>
                                     <td class="text-end">
                                         <div class="btn-group" role="group">
-                                            <a href="${pageContext.request.contextPath}/booking/${booking.id}" class="btn btn-sm btn-outline-primary">
+                                            <a href="${pageContext.request.contextPath}/user/bookings" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye"></i><span class="d-none d-md-inline ms-1">Details</span>
                                             </a>
                                             <button onclick="printBooking('${booking.id}')" class="btn btn-sm btn-outline-secondary">
