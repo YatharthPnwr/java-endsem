@@ -57,7 +57,7 @@ public class VendorServlet extends BaseServlet {
         try {
             switch (path) {
                 case "/vendors":
-                    listVendors(request, response);
+                    listVendorServicesPublic(request, response); // Calls the new method
                     break;
                 case "/vendor/details": 
                     showVendorDetails(request, response);
@@ -72,7 +72,7 @@ public class VendorServlet extends BaseServlet {
                     showVendorDashboard(request, response);
                     break;
                 case "/vendor/services": 
-                    listVendorServices(request, response);
+                    listVendorServicesForManagement(request, response); 
                     break;
                 case "/vendor/service/add":
                     showAddServiceForm(request, response);
@@ -89,6 +89,8 @@ public class VendorServlet extends BaseServlet {
                     break;
                 default:
                     if (path.startsWith("/vendor/") && path.matches("/vendor/\\d+")) {
+                        String idParamFromPath = path.substring("/vendor/".length());
+                        request.setAttribute("idFromPath", idParamFromPath); 
                         showVendorDetails(request, response); 
                     } else {
                         System.err.println("VendorServlet doGet - Unknown path: " + path);
@@ -152,7 +154,6 @@ public class VendorServlet extends BaseServlet {
             reShowFormOnError(request, response, path, "Database error: " + e.getMessage());
         } catch (InvalidInputException e) {
             System.err.println("VendorServlet doPost - InvalidInputException: " + e.getMessage());
-            // No e.printStackTrace() here as it's a validation error, not a system crash
             request.setAttribute("errorMessage", e.getMessage());
             reShowFormOnError(request, response, path, e.getMessage());
         } catch (Exception e) { 
@@ -165,12 +166,11 @@ public class VendorServlet extends BaseServlet {
 
     private void reShowFormOnError(HttpServletRequest request, HttpServletResponse response, String path, String errorMessage) 
         throws ServletException, IOException {
-        // Ensure errorMessage is set if it came from a more generic catch
-        if (request.getAttribute("errorMessage") == null) {
+        if (request.getAttribute("errorMessage") == null) { 
             request.setAttribute("errorMessage", errorMessage);
         }
         
-        User loggedInUser = getLoggedInUser(request); // Get user for context
+        User loggedInUser = getLoggedInUser(request); 
 
         if (path.equals("/vendor/profile/save")) {
             Vendor vendorToRepopulate = new Vendor(); 
@@ -183,19 +183,18 @@ public class VendorServlet extends BaseServlet {
                 if (baseCostParam != null && !baseCostParam.trim().isEmpty()) {
                     vendorToRepopulate.setBaseCost(Double.parseDouble(baseCostParam));
                 }
-            } catch (NumberFormatException nfe) { /* errorMessage should already reflect this from validation */ }
+            } catch (NumberFormatException nfe) { /* ignore */ }
             vendorToRepopulate.setImageUrl(request.getParameter("imageUrl"));
             if(loggedInUser != null) vendorToRepopulate.setUserId(loggedInUser.getId());
 
             request.setAttribute("vendor", vendorToRepopulate);
-            request.setAttribute("user", loggedInUser); // Pass user for JSP context if needed
+            request.setAttribute("user", loggedInUser); 
             request.getRequestDispatcher("/WEB-INF/views/vendor-create-profile.jsp").forward(request, response);
         } else if (path.equals("/vendor/service/save")) {
             Vendor currentVendor = null;
             VendorService serviceToRepopulate = new VendorService();
             try {
                 if(loggedInUser != null) currentVendor = vendorDAO.findByUserId(loggedInUser.getId());
-                // Repopulate service from request
                 serviceToRepopulate.setName(request.getParameter("name"));
                 serviceToRepopulate.setDescription(request.getParameter("description"));
                 serviceToRepopulate.setServiceType(request.getParameter("serviceType"));
@@ -207,7 +206,7 @@ public class VendorServlet extends BaseServlet {
                 } catch (NumberFormatException nfe) { /* handled by validation */ }
                 serviceToRepopulate.setLocation(request.getParameter("location"));
                 serviceToRepopulate.setImageUrl(request.getParameter("imageUrl"));
-                String serviceIdParam = request.getParameter("id"); // For edit mode
+                String serviceIdParam = request.getParameter("id"); 
                 if (serviceIdParam != null && !serviceIdParam.isEmpty()) {
                     try {
                         serviceToRepopulate.setId(Integer.parseInt(serviceIdParam));
@@ -215,47 +214,37 @@ public class VendorServlet extends BaseServlet {
                 }
             } catch (SQLException sqlEx) {
                  System.err.println("VendorServlet reShowFormOnError (service save) - SQLException fetching vendor: " + sqlEx.getMessage());
-                 // If vendor can't be fetched, the form might be partially incomplete but still show with errors
             }
             request.setAttribute("vendorService", serviceToRepopulate);
             request.setAttribute("vendor", currentVendor); 
             request.setAttribute("formAction", (serviceToRepopulate.getId() > 0) ? "edit" : "add");
             request.getRequestDispatcher("/WEB-INF/views/vendor-service-form.jsp").forward(request, response);
         } else {
-            // For other POST errors where re-showing form is not applicable or simple
             request.getRequestDispatcher("/WEB-INF/views/error/error.jsp").forward(request, response);
         }
     }
 
-
-    private void listVendors(HttpServletRequest request, HttpServletResponse response)
+    // Changed to list individual services with vendor details for the public /vendors page
+    private void listVendorServicesPublic(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException, SQLException {
-        System.out.println("VendorServlet: listVendors called");
-        String typeFilter = request.getParameter("type");
+        System.out.println("VendorServlet: listVendorServicesPublic called for /vendors page");
+        String serviceTypeFilter = request.getParameter("type"); 
         String searchQuery = request.getParameter("query"); 
         String sortParam = request.getParameter("sort"); 
-        // String minPriceParam = request.getParameter("minPrice"); // For future use
-        // String maxPriceParam = request.getParameter("maxPrice"); // For future use
 
-        List<Vendor> vendors;
-
-        if (typeFilter != null && !typeFilter.trim().isEmpty()) {
-            vendors = vendorDAO.findByType(typeFilter, sortParam, searchQuery); 
-            request.setAttribute("selectedType", typeFilter);
-             System.out.println("VendorServlet: Filtering by type: " + typeFilter + ", Search: '" + searchQuery + "', Sort: " + sortParam + ", Found " + vendors.size() + " vendors.");
-        } else {
-            vendors = vendorDAO.findAllActive(sortParam, searchQuery); 
-            System.out.println("VendorServlet: Fetching all active vendors. Search: '" + searchQuery + "', Sort: " + sortParam + ", Found " + vendors.size() + " vendors.");
-        }
+        List<VendorService> vendorServiceList = vendorServiceDAO.findAllActiveServicesWithVendorDetails(serviceTypeFilter, searchQuery, sortParam);
         
-        request.setAttribute("vendors", vendors);
-        List<String> vendorTypes = vendorDAO.findDistinctVendorTypes();
-        request.setAttribute("vendorTypes", vendorTypes);
+        System.out.println("VendorServlet: Fetched " + vendorServiceList.size() + " active services with vendor details.");
+        
+        request.setAttribute("vendorServiceList", vendorServiceList); // List of VendorService objects, each containing its parent Vendor
+        
+        List<String> serviceTypesForFilter = vendorServiceDAO.findDistinctServiceTypes(); 
+        request.setAttribute("vendorTypes", serviceTypesForFilter); 
+        
         request.setAttribute("currentSort", sortParam); 
-        // JSP uses param.query to repopulate search input, so no need to set currentQuery explicitly for that purpose
-        // request.setAttribute("currentQuery", searchQuery); 
-
-        System.out.println("VendorServlet: Forwarding to vendors.jsp");
+        request.setAttribute("selectedType", serviceTypeFilter); 
+        
+        System.out.println("VendorServlet: Forwarding to vendors.jsp (which will now list services)");
         request.getRequestDispatcher("/WEB-INF/views/vendors.jsp").forward(request, response);
     }
 
@@ -264,32 +253,24 @@ public class VendorServlet extends BaseServlet {
         throws ServletException, IOException, SQLException, EventAggregatorException {
         System.out.println("VendorServlet: showVendorDetails called");
         String idParam = request.getParameter("id"); 
-        String pathInfo = request.getPathInfo(); 
-
-        // Logic to extract ID from path if not a query parameter
-        if (idParam == null || idParam.trim().isEmpty()) {
-            if (pathInfo != null && pathInfo.length() > 1) {
-                String potentialIdFromPath = pathInfo.substring(1); // Remove leading '/'
-                if (potentialIdFromPath.matches("\\d+")) { // Check if it's all digits
-                    idParam = potentialIdFromPath;
-                    System.out.println("VendorServlet: Extracted vendor ID from path: " + idParam);
-                }
-            }
-        }
-        // Fallback if ID is part of a sub-path like /vendor/details/{id} (less likely with current mapping)
-        if (idParam == null || idParam.trim().isEmpty() && request.getServletPath().equals("/vendor/details")) {
-            // This part might be redundant if all /vendor/{id} calls are handled by the default case
-            String requestURI = request.getRequestURI();
-            String contextPath = request.getContextPath();
-            String targetPath = requestURI.substring(contextPath.length()); 
-            if (targetPath.startsWith("/vendor/details/")) {
-                 idParam = targetPath.substring("/vendor/details/".length());
-                 if (!idParam.matches("\\d+")) idParam = null; // ensure it's a number
-            }
+        
+        String idFromPathAttribute = (String) request.getAttribute("idFromPath");
+        if (idParam == null && idFromPathAttribute != null) {
+            idParam = idFromPathAttribute;
+             System.out.println("VendorServlet: Using vendor ID from path attribute: " + idParam);
         }
         
         if (idParam == null || idParam.trim().isEmpty()) {
-            throw new EventAggregatorException("Vendor ID is required to view details.");
+            String pathInfo = request.getPathInfo();
+            if (pathInfo != null && pathInfo.startsWith("/")) {
+                String potentialId = pathInfo.substring(1);
+                if (potentialId.matches("\\d+")) {
+                    idParam = potentialId;
+                }
+            }
+            if (idParam == null || idParam.trim().isEmpty()) {
+                 throw new EventAggregatorException("Vendor ID is required to view details.");
+            }
         }
 
         try {
@@ -301,10 +282,10 @@ public class VendorServlet extends BaseServlet {
                 request.getRequestDispatcher("/WEB-INF/views/error/404.jsp").forward(request, response);
                 return;
             }
-            // List<VendorService> services = vendorServiceDAO.getServicesByVendorId(vendorId); // Fetch if needed for detail page
+            List<VendorService> services = vendorServiceDAO.getActiveServicesByVendorId(vendorId);
             request.setAttribute("vendor", vendor);
-            // request.setAttribute("services", services); 
-            System.out.println("VendorServlet: Showing details for vendor ID " + vendorId + ". Forwarding to vendor-details.jsp");
+            request.setAttribute("services", services); 
+            System.out.println("VendorServlet: Showing details for vendor ID " + vendorId + ". Fetched " + services.size() + " active services. Forwarding to vendor-details.jsp");
             request.getRequestDispatcher("/WEB-INF/views/vendor-details.jsp").forward(request, response);
         } catch (NumberFormatException e) {
             throw new EventAggregatorException("Invalid Vendor ID format: " + idParam);
@@ -361,7 +342,6 @@ public class VendorServlet extends BaseServlet {
             return;
         }
 
-        String vendorIdParam = request.getParameter("id");
         String name = request.getParameter("name"); 
         String type = request.getParameter("type"); 
         String description = request.getParameter("description");
@@ -417,7 +397,7 @@ public class VendorServlet extends BaseServlet {
 
         if (success) {
             System.out.println("VendorServlet (saveVendorProfile): Profile saved successfully. Redirecting to dashboard.");
-            request.getSession().setAttribute("successMessage", "Vendor profile " + (isNewVendor ? "created (pending approval)" : "updated") + " successfully!");
+            request.getSession().setAttribute("successMessage", "Vendor profile " + (isNewVendor ? "created (pending approval by admin)" : "updated") + " successfully!");
             response.sendRedirect(request.getContextPath() + "/vendor-dashboard");
         } else {
             System.err.println("VendorServlet (saveVendorProfile): Failed to save vendor profile.");
@@ -468,8 +448,8 @@ public class VendorServlet extends BaseServlet {
 
         if (vendor != null) {
             System.out.println("VendorServlet (showVendorDashboard): Vendor ID is " + vendor.getId());
-            services = vendorServiceDAO.getServicesByVendorId(vendor.getId());
-            System.out.println("VendorServlet (showVendorDashboard): Fetched " + (services != null ? services.size() : "0") + " services for vendor ID " + vendor.getId());
+            services = vendorServiceDAO.getAllServicesByVendorIdForManagement(vendor.getId());
+            System.out.println("VendorServlet (showVendorDashboard): Fetched " + (services != null ? services.size() : "0") + " services (management view) for vendor ID " + vendor.getId());
             bookings = bookingDAO.getBookingsByVendorId(vendor.getId()); 
             System.out.println("VendorServlet (showVendorDashboard): Fetched " + (bookings != null ? bookings.size() : "0") + " bookings for vendor ID " + vendor.getId());
         } else {
@@ -478,7 +458,7 @@ public class VendorServlet extends BaseServlet {
         request.setAttribute("services", services);
         request.setAttribute("bookings", bookings);
 
-        HttpSession session = request.getSession(false);
+        HttpSession session = request.getSession(false); 
         if (session != null) {
             String successMessage = (String) session.getAttribute("successMessage");
             if (successMessage != null) {
@@ -497,9 +477,9 @@ public class VendorServlet extends BaseServlet {
         System.out.println("--- VENDOR SERVLET: EXITED showVendorDashboard (after forward) ---");
     }
 
-    private void listVendorServices(HttpServletRequest request, HttpServletResponse response)
+    private void listVendorServicesForManagement(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException, SQLException {
-        System.out.println("--- VENDOR SERVLET: ENTERING listVendorServices ---");
+        System.out.println("--- VENDOR SERVLET: ENTERING listVendorServicesForManagement (typically part of dashboard) ---");
         User sessionUser = getLoggedInUser(request);
         if (sessionUser == null || !"VENDOR".equals(sessionUser.getUserType())) {
             response.sendRedirect(request.getContextPath() + "/login");
@@ -510,10 +490,10 @@ public class VendorServlet extends BaseServlet {
             response.sendRedirect(request.getContextPath() + "/vendor/profile/create");
             return;
         }
-        List<VendorService> services = vendorServiceDAO.getServicesByVendorId(vendor.getId());
+        List<VendorService> services = vendorServiceDAO.getAllServicesByVendorIdForManagement(vendor.getId());
         request.setAttribute("services", services);
         request.setAttribute("vendor", vendor); 
-        System.out.println("VendorServlet (listVendorServices): Forwarding to vendor-dashboard.jsp (as services are part of it)");
+        System.out.println("VendorServlet (listVendorServicesForManagement): Forwarding to vendor-dashboard.jsp");
         request.getRequestDispatcher("/WEB-INF/views/vendor-dashboard.jsp").forward(request, response); 
     }
 
@@ -557,7 +537,7 @@ public class VendorServlet extends BaseServlet {
         }
         try {
             int serviceId = Integer.parseInt(serviceIdParam);
-            VendorService service = vendorServiceDAO.getServiceById(serviceId);
+            VendorService service = vendorServiceDAO.getServiceById(serviceId); 
             if (service == null || service.getVendorId() != vendor.getId()) {
                 throw new EventAggregatorException("Service not found or you do not have permission to edit it.");
             }

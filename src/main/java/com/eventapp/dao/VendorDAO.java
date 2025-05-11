@@ -2,7 +2,7 @@ package com.eventapp.dao;
 
 import com.eventapp.model.AdminVendorView;
 import com.eventapp.model.Vendor;
-import com.eventapp.model.User; // Ensure this import is present
+import com.eventapp.model.User; 
 import com.eventapp.util.DatabaseUtil;
 
 import java.sql.Connection;
@@ -17,12 +17,10 @@ import java.util.Map;
 
 public class VendorDAO {
 
-    // Helper to build ORDER BY clause safely
     private String getOrderByClause(String sortParam) {
         if (sortParam == null || sortParam.trim().isEmpty()) {
-            return " ORDER BY business_name ASC"; // Default sort
+            return " ORDER BY business_name ASC"; 
         }
-        // Whitelist of allowed sort columns and their corresponding DB columns
         Map<String, String> allowedSorts = new HashMap<>();
         allowedSorts.put("price_asc", "base_cost ASC");
         allowedSorts.put("price_desc", "base_cost DESC");
@@ -31,7 +29,7 @@ public class VendorDAO {
         allowedSorts.put("rating_desc", "rating DESC"); 
 
         String orderBy = allowedSorts.get(sortParam.toLowerCase());
-        return (orderBy != null) ? " ORDER BY " + orderBy : " ORDER BY business_name ASC"; // Default if invalid
+        return (orderBy != null) ? " ORDER BY " + orderBy : " ORDER BY business_name ASC"; 
     }
 
     public Vendor findByUserId(int userId) throws SQLException {
