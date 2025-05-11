@@ -2,8 +2,8 @@ package com.eventapp.dao;
 
 import com.eventapp.model.AdminVendorView;
 import com.eventapp.model.Vendor;
+import com.eventapp.model.User; // Ensure this import is present
 import com.eventapp.util.DatabaseUtil;
-import com.eventapp.model.User;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,7 +28,7 @@ public class VendorDAO {
         allowedSorts.put("price_desc", "base_cost DESC");
         allowedSorts.put("name_asc", "business_name ASC");
         allowedSorts.put("name_desc", "business_name DESC");
-        allowedSorts.put("rating_desc", "rating DESC"); // Added for potential future use
+        allowedSorts.put("rating_desc", "rating DESC"); 
 
         String orderBy = allowedSorts.get(sortParam.toLowerCase());
         return (orderBy != null) ? " ORDER BY " + orderBy : " ORDER BY business_name ASC"; // Default if invalid
@@ -74,15 +74,31 @@ public class VendorDAO {
         return vendor;
     }
     
-    public List<Vendor> findByType(String type, String sortParam) throws SQLException {
+    public List<Vendor> findByType(String type, String sortParam, String searchQuery) throws SQLException {
         List<Vendor> vendors = new ArrayList<>();
         String orderByClause = getOrderByClause(sortParam);
-        String sql = "SELECT id, user_id, business_name, description, service_type, base_cost, location, contact_email, contact_phone, rating, image_url, is_active " +
-                     "FROM vendors WHERE service_type = ? AND is_active = 1" + orderByClause;
-        System.out.println("VendorDAO: Fetching vendors by type: " + type + " sorted by " + orderByClause);
+        
+        StringBuilder sqlBuilder = new StringBuilder("SELECT id, user_id, business_name, description, service_type, base_cost, location, contact_email, contact_phone, rating, image_url, is_active ")
+            .append("FROM vendors WHERE service_type = ? AND is_active = 1");
+
+        if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            sqlBuilder.append(" AND business_name LIKE ?");
+        }
+        sqlBuilder.append(orderByClause);
+        
+        String sql = sqlBuilder.toString();
+        System.out.println("VendorDAO: SQL for findByType: " + sql);
+        System.out.println("VendorDAO: Params - Type: " + type + (searchQuery != null && !searchQuery.trim().isEmpty() ? ", Search: %" + searchQuery + "%" : ""));
+
+        
         try (Connection connection = DatabaseUtil.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, type);
+            int paramIndex = 1;
+            statement.setString(paramIndex++, type);
+            if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                statement.setString(paramIndex++, "%" + searchQuery + "%");
+            }
+            
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     vendors.add(mapResultSetToVendor(resultSet));
@@ -92,27 +108,44 @@ public class VendorDAO {
             System.err.println("SQLException in VendorDAO.findByType for type " + type + ": " + e.getMessage());
             throw e;
         }
-        System.out.println("VendorDAO: Found " + vendors.size() + " vendors for type: " + type);
+        System.out.println("VendorDAO: Found " + vendors.size() + " vendors for type: " + type + " with search: '" + searchQuery + "'");
         return vendors;
     }
 
-    public List<Vendor> findAllActive(String sortParam) throws SQLException {
+    public List<Vendor> findAllActive(String sortParam, String searchQuery) throws SQLException {
         List<Vendor> vendors = new ArrayList<>();
         String orderByClause = getOrderByClause(sortParam);
-        String sql = "SELECT id, user_id, business_name, description, service_type, base_cost, location, contact_email, contact_phone, rating, image_url, is_active " +
-                     "FROM vendors WHERE is_active = 1" + orderByClause;
-        System.out.println("VendorDAO: Fetching all active vendors sorted by " + orderByClause);
+        
+        StringBuilder sqlBuilder = new StringBuilder("SELECT id, user_id, business_name, description, service_type, base_cost, location, contact_email, contact_phone, rating, image_url, is_active ")
+            .append("FROM vendors WHERE is_active = 1");
+
+        if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            sqlBuilder.append(" AND business_name LIKE ?");
+        }
+        sqlBuilder.append(orderByClause);
+
+        String sql = sqlBuilder.toString();
+        System.out.println("VendorDAO: SQL for findAllActive: " + sql);
+        System.out.println("VendorDAO: Params - " + (searchQuery != null && !searchQuery.trim().isEmpty() ? "Search: %" + searchQuery + "%" : "No search query"));
+        
         try (Connection connection = DatabaseUtil.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            while (resultSet.next()) {
-                vendors.add(mapResultSetToVendor(resultSet));
+             PreparedStatement statement = connection.prepareStatement(sql)) { 
+            
+            int paramIndex = 1;
+            if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+                statement.setString(paramIndex++, "%" + searchQuery + "%");
+            }
+            
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    vendors.add(mapResultSetToVendor(resultSet));
+                }
             }
         } catch (SQLException e) {
              System.err.println("SQLException in VendorDAO.findAllActive: " + e.getMessage());
             throw e;
         }
-        System.out.println("VendorDAO: Found " + vendors.size() + " active vendors.");
+        System.out.println("VendorDAO: Found " + vendors.size() + " active vendors with search: '" + searchQuery + "'");
         return vendors;
     }
     
@@ -142,8 +175,8 @@ public class VendorDAO {
             statement.setString(6, vendor.getLocation());
             
             String contactInfo = vendor.getContactInfo(); 
-            String email = sessionUserEmailFallback(vendor.getUserId(), contactInfo, true); // Helper to get email
-            String phone = sessionUserEmailFallback(vendor.getUserId(), contactInfo, false); // Helper to get phone
+            String email = sessionUserEmailFallback(vendor.getUserId(), contactInfo, true);
+            String phone = sessionUserEmailFallback(vendor.getUserId(), contactInfo, false);
 
             statement.setString(7, email); 
             statement.setString(8, phone); 
@@ -206,7 +239,6 @@ public class VendorDAO {
         }
     }
     
-    // Helper for add/update to parse contact info or fallback to User's details
     private String sessionUserEmailFallback(int userId, String contactInfo, boolean getEmail) throws SQLException {
         String emailPart = "";
         String phonePart = "";
@@ -219,7 +251,12 @@ public class VendorDAO {
             } else if (contactInfo.contains("@")) {
                 emailPart = contactInfo.trim();
             } else {
-                phonePart = contactInfo.trim(); // Assumes it's a phone if no '@' and no ','
+                if (contactInfo.matches(".*\\d.*") && !contactInfo.contains("@")) { 
+                    phonePart = contactInfo.trim();
+                } else if (!contactInfo.contains("@")) { 
+                    if (getEmail && !contactInfo.trim().isEmpty()) emailPart = contactInfo.trim();
+                    else if (!getEmail && !contactInfo.trim().isEmpty()) phonePart = contactInfo.trim();
+                }
             }
         }
 
@@ -231,12 +268,12 @@ public class VendorDAO {
     }
 
     private String fetchUserDetail(int userId, boolean getEmail) throws SQLException {
-        UserDAO userDAO = new UserDAO(); // Consider injecting this if it becomes a common pattern
-        User user = userDAO.findById(userId);
+        UserDAO userDAO = new UserDAO(); 
+        User user = userDAO.findById(userId); 
         if (user != null) {
             return getEmail ? user.getEmail() : user.getPhone();
         }
-        return ""; // Fallback
+        return ""; 
     }
 
     public boolean updateVendorStatus(int vendorId, boolean isActive) throws SQLException {
@@ -288,7 +325,19 @@ public class VendorDAO {
         vendor.setDescription(rs.getString("description"));
         String email = rs.getString("contact_email");
         String phone = rs.getString("contact_phone");
-        vendor.setContactInfo(email + (phone != null && !phone.isEmpty() ? ", " + phone : ""));
+        
+        StringBuilder contactInfoBuilder = new StringBuilder();
+        if (email != null && !email.isEmpty()) {
+            contactInfoBuilder.append(email);
+        }
+        if (phone != null && !phone.isEmpty()) {
+            if (contactInfoBuilder.length() > 0) {
+                contactInfoBuilder.append(", "); 
+            }
+            contactInfoBuilder.append(phone);
+        }
+        vendor.setContactInfo(contactInfoBuilder.toString());
+
         vendor.setLocation(rs.getString("location"));
         vendor.setBaseCost(rs.getDouble("base_cost"));
         vendor.setImageUrl(rs.getString("image_url"));
