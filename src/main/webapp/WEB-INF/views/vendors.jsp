@@ -19,10 +19,10 @@
                             <label for="searchQuery" class="form-label fw-bold">Search</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="searchQuery" name="query" 
-                                    value="${param.query}" placeholder="Search vendors...">
+                                       value="${param.query}" placeholder="Search vendors...">
                             </div>
                         </div>
-                        
+
                         <!-- Service Type Filter -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Service Type</label>
@@ -40,7 +40,7 @@
                                 </div>
                             </c:forEach>
                         </div>
-                        
+
                         <!-- Price Range Filter -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Price Range (₹)</label>
@@ -55,7 +55,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
                             <button type="button" class="btn btn-outline-secondary" id="resetFilters">Reset Filters</button>
@@ -64,7 +64,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Vendors Listing -->
         <div class="col-lg-9">
             <c:choose>
@@ -79,18 +79,18 @@
                         <p class="mb-0 text-muted"><strong>${vendors.size()}</strong> services found</p>
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                Sort By: ${empty param.sort ? 'Default' : param.sort eq 'price_asc' ? 'Price: Low to High' : param.sort eq 'price_desc' ? 'Price: High to Low' : param.sort eq 'name_asc' ? 'Name: A to Z' : 'Name: Z to A'}
+                                Sort By: ${empty currentSort ? 'Default' : currentSort eq 'price_asc' ? 'Price: Low to High' : currentSort eq 'price_desc' ? 'Price: High to Low' : currentSort eq 'name_asc' ? 'Name: A to Z' : currentSort eq 'name_desc' ? 'Name: Z to A' : 'Default'}
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item ${empty param.sort ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}">Default</a></li>
-                                <li><a class="dropdown-item ${param.sort eq 'price_asc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=price_asc">Price: Low to High</a></li>
-                                <li><a class="dropdown-item ${param.sort eq 'price_desc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=price_desc">Price: High to Low</a></li>
-                                <li><a class="dropdown-item ${param.sort eq 'name_asc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=name_asc">Name: A to Z</a></li>
-                                <li><a class="dropdown-item ${param.sort eq 'name_desc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=name_desc">Name: Z to A</a></li>
+                                <li><a class="dropdown-item ${empty currentSort ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}">Default</a></li>
+                                <li><a class="dropdown-item ${currentSort eq 'price_asc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=price_asc">Price: Low to High</a></li>
+                                <li><a class="dropdown-item ${currentSort eq 'price_desc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=price_desc">Price: High to Low</a></li>
+                                <li><a class="dropdown-item ${currentSort eq 'name_asc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=name_asc">Name: A to Z</a></li>
+                                <li><a class="dropdown-item ${currentSort eq 'name_desc' ? 'active' : ''}" href="?${pageContext.request.queryString.replaceAll('&?sort=[^&]*', '')}&sort=name_desc">Name: Z to A</a></li>
                             </ul>
                         </div>
                     </div>
-                    
+
                     <!-- Vendor Cards -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
                         <c:forEach var="vendor" items="${vendors}">
@@ -127,7 +127,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Modal for this vendor -->
                             <div class="modal fade" id="vendorModal${vendor.id}" tabindex="-1" aria-labelledby="vendorModalLabel${vendor.id}" aria-hidden="true">
                                 <div class="modal-dialog modal-lg">
@@ -158,7 +158,7 @@
                                                     <h6>Contact Information:</h6>
                                                     <p>${vendor.contactInfo}</p>
                                                     <p><strong>Location:</strong> ${vendor.location}</p>
-                                                    
+
                                                     <div class="mt-4">
                                                         <c:if test="${sessionScope.user != null}">
                                                             <form action="${pageContext.request.contextPath}/add-to-cart" method="post">
@@ -193,7 +193,7 @@
 
 <script>
     // Reset filters button functionality
-    document.getElementById('resetFilters').addEventListener('click', function() {
+    document.getElementById('resetFilters').addEventListener('click', function () {
         window.location.href = '${pageContext.request.contextPath}/vendors';
     });
 </script>
